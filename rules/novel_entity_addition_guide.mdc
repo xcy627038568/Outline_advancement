@@ -1,0 +1,47 @@
+---
+description: 智能体新增设定同步指南
+globs: ["*"]
+---
+# 大明老子是赵王 - 智能体新增设定（实体/物品/伏笔）同步指南 (V4 细纲驱动版)
+
+## 1. 核心定位：你是设定的“防御型架构师”
+当你在写作中**主动原创**了细纲里没有详细提及的新配角（丫鬟、死士）、新物品（资产、配方）或新设定时，你可以选择将这些背景设定注入到数据库中，以丰富世界观。
+在 V4 架构下，所有的静态设定只认 `novel_ledger.db`，网页端 (Narrative OS) 会自动读取数据库展示。
+
+---
+
+## 2. P0 级行动铁律
+1. **只写数据库**：旧版的繁琐 Markdown 手动修改已经废弃，静态设定与可复用事实只认主库 `novel_ledger.db`。绝不允许使用脚本批量改规则 Markdown 伪装成“已入库”。
+2. **优先走章节闭环**：如果新增设定是当前章节正文自然产物，优先通过 `temp/update_chapter_XXX.md` + `finalize_chapter_workflow.py` 静默入库，而不是脱离章节上下文手工注入。
+3. **只在必要时直写 SQL**：只有当用户明确要求补设定、回填静态事实、或该设定不适合挂在单章台账里时，才使用 SQL 直接注入。
+
+---
+
+## 3. 战术侦察与注入 (V4 表结构)
+
+### 3.1 角色入侵（新丫鬟、新官员）
+- **章节内新增角色**：优先通过章节台账的 `"character_updates"` 写入，由闭环脚本自动合并到 `entities_registry` 与 `character_history_log`。
+- **章节外补设定**：如需直接写库，应补齐至少 `name`、`entity_type`、`importance_level`、`static_core`，推荐同时补 `role_type`、`affiliation`、`occupation`、`personality`、`appearance`、`status`。
+- 可选补充 `relationships_json` 或章节历史记录，避免只有名字没有可用底色。
+
+### 3.2 资产/商铺入侵
+- **章节内新增或变化的资产**：优先通过章节台账的 `"assets_updates"` 写入，由闭环脚本自动合并到 `wealth_and_assets` 与 `asset_history_log`。
+- 直写主库时，至少补齐 `asset_name`、`asset_group`、`value_kind`、当前值字段；推荐同步补 `unit`。
+- 资产组当前统一使用：`funds`、`raw_materials`、`products`、`personnel`、`key_items`。
+- 数值型资产建议写入 `current_value_num`，文本型契约或状态建议写入 `current_value_text`。
+
+### 3.3 规则/物价入侵
+- 插入 `world_facts`（作为后续写作的基准字典）：
+  ```sql
+  INSERT INTO world_facts (domain, fact_key, fact_value, notes) 
+  VALUES ('物价标尺', '粗盐零售价', '5文/斤', '建文元年京城黑市价');
+  ```
+
+---
+
+## 4. Agent 突击 SOP
+
+1. **先判断入口**：这是“本章自然新增”还是“章节外补设定”。
+2. **本章自然新增**：优先写入本章台账，让 `finalize_chapter_workflow.py` 统一闭环。
+3. **章节外补设定**：执行 SQL 或数据库写入动作，直达主库 `novel_ledger.db`。
+4. **汇报撤离**：明确说明写入的是哪张表、采用的是台账闭环还是直接入库，避免口径含混。

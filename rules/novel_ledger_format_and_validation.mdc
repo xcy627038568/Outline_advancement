@@ -1,0 +1,115 @@
+---
+description: 强制执行的章节闭环台账 JSON 格式规范
+globs: ["temp/update_chapter_*.md"]
+---
+
+# 小说台账 JSON 格式与校验规范 (细纲驱动 V4)
+
+这是你在生成每一章的战报台账 (`temp/update_chapter_XXX.md`) 时，**必须遵守的极简格式铁律**。
+当前闭环的事实源是项目根目录唯一主库 `novel_ledger.db`。台账文件只是闭环输入，不是最终事实源。
+
+## 1. 整体结构要求
+
+文件内容必须由 1 个固定的 Markdown 标题及其下方的 JSON 代码块组成。
+这个标题必须是：
+- `## 章节更新`
+
+**不要在代码块外面添加任何废话、解释或注释。**
+
+---
+
+## 2. JSON 数据结构字典
+
+### 2.1 章节更新 (Chapter Update)
+**描述**：记录本章整体剧情和向后传递的坑。
+```json
+{
+  "chapter_no": 1,
+  "timeline": "（必填）本章发生的具体时间线。新历用阿拉伯数字，农历用中文数字，如：1399年农历五月二十二。",
+  "written_summary": "（必填）本章发生的实际剧情摘要，控制在50字内。",
+  "next_hook": "（必填）本章结尾抛出的悬念，留给下一章的坑。",
+  "key_assets_change": "（可选）本章是否有重大资产变动的一句话总结，没有填空字符串。",
+  "character_updates": {
+    "新角色名或老角色名": {
+      "history": ["（追加）本章的新经历或状态变化"]
+    }
+  },
+  "assets_updates": {
+    "funds": {"silver_taels": 50000}
+  }
+}
+```
+
+### 2.2 时间线格式铁律
+- `timeline` 必填，且必须遵守：`新历用阿拉伯数字，农历用中文数字`。
+- 推荐写法：`1399年农历五月至六月`、`1399年6月12日·农历五月初五`。
+- 禁止写法：`1399年五月至六月`、`1399年5月初五`、`建文元年6月初五`。
+- 闭环脚本会在写库前再次规范化 `timeline`，但台账本身也必须尽量一次写对。
+
+### 2.3 资产更新语义
+- `assets_updates` 中的数值，默认视为**增量**。
+- 如果要覆盖现值，必须使用对象写法并声明 `"mode": "absolute"`。
+- 示例：
+```json
+{
+  "assets_updates": {
+    "funds": {
+      "silver_taels": { "value": 50000, "mode": "absolute", "note": "抄底后重置账面" }
+    }
+  }
+}
+```
+- 字符串类资产默认按覆盖处理，适用于契约、凭证、配方状态、口令等文本值。
+
+---
+
+## 3. 完整输出模板示例
+
+你在输出 `temp/update_chapter_XXX.md` 时，内容必须长这样：
+
+```markdown
+## 章节更新
+```json
+{
+  "chapter_no": 47,
+  "timeline": "1399年农历六月初五",
+  "written_summary": "主角成功试制出高度酒精，并借此与世子府搭上线。",
+  "next_hook": "夏原吉突然带人封查了偏院门口，主角该如何解释这批物资？",
+  "key_assets_change": "偏院工坊产能提升至日产100瓶。",
+  "character_updates": {
+    "夏原吉": {
+      "name": "夏原吉",
+      "role_type": "文官阵营",
+      "first_appearance": "第047章",
+      "history": ["带人封查偏院门口"]
+    }
+  },
+  "assets_updates": {
+    "products": {"alcohol_jars": 100}
+  }
+}
+```
+```
+
+---
+
+## 4. Agent 闭环与验尸流程 (V4 必须执行)
+
+### 4.1 写入台账并洗地
+当你在前线（正文撰写）完成了一章的突击后，你的任务并没有结束。
+你**必须**先用 `Write` 工具把完整台账写入 `temp/update_chapter_XXX.md`，再执行：
+
+```bash
+python local_generator/finalize_chapter_workflow.py <章节号>
+```
+
+### 4.2 自动验尸 (Verify)
+- 如果 `finalize_chapter_workflow.py` 返回 **“成功”**：说明数据库已更新，闭环完成。
+- 如果返回 **Error/异常**：
+  - **绝不允许向用户报错并甩锅**。
+  - 立即读取报错信息（通常是 JSON 格式错了）。
+  - 自我修正 JSON 内容，重新写入 `temp/update_chapter_XXX.md`，再重新执行 `python local_generator/finalize_chapter_workflow.py <章节号>`，直到成功为止。
+- 闭环脚本的真实动作包括：备份主库、写入角色更新、写入资产更新、规范化时间线、更新 `chapters_nav`、归档台账到 `ledger/history/`。
+
+### 4.3 意外中断恢复原则
+如果你在生成台账或执行洗地脚本的过程中被**意外中断**（如 Token 耗尽），当用户让你“继续”时，你**必须**先检查台账是否完整生成并写入数据库。**绝不允许跳过清扫阶段直接去写下一章！**

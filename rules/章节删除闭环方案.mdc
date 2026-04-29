@@ -1,0 +1,131 @@
+# 章节删除闭环规则
+
+## 1. 核心定位
+
+- 本文件不是讨论性方案，而是删除章节时必须遵守的执行规则。
+- 章节删除属于逆向闭环操作，必须同时处理正文、台账、数据库历史和主库当前快照。
+- 删除完成后，`novel_ledger.db` 必须保持可继续续写的干净状态，绝不允许留下断链或脏状态。
+
+## 2. 删除权限边界
+
+- 只允许两种删除模式：
+- `last_only`：只删除当前最后一个已闭环章节。
+- `tail`：从指定章节开始，向后整段截断所有已闭环章节。
+
+- 严禁以下行为：
+- 严禁删除中间某一章并保留其后章节。
+- 严禁手动删除 `chapter/*.md` 后不处理主库。
+- 严禁只删台账、不删数据库历史。
+- 严禁绕过删除脚本，直接手工修改主库状态冒充删除完成。
+
+## 3. 删除边界铁律
+
+- `chapters_nav` 的时间线、摘要和钩子按章节链顺承，不能中间打洞。
+- `entities_registry` 与 `wealth_and_assets` 保存的是当前快照，不是天然可逆的逐章状态。
+- 任何中间挖空行为都会让后续章节的人物状态、资产余额和承接关系失真。
+
+结论：
+
+- 如需撤回，只能撤回最后一章。
+- 如需回退到更早位置，只能从目标章开始向后整段截断。
+
+## 4. 标准删除流程
+
+### 4.1 先预检，后执行
+
+- 删除前必须先执行：
+
+```bash
+python local_generator/plan_delete_chapters.py --chapter_no N --mode tail
+```
+
+- 预检阶段必须明确展示以下内容：
+- 将被删除的已写章节范围
+- 将被影响的正文文件
+- 将被影响的归档台账
+- 将被影响的临时台账
+- 将被影响的角色历史记录
+- 将被影响的资产历史记录
+
+- 未完成预检，不准执行正式删除。
+
+### 4.2 先备份，后动库
+
+- 正式删除前，必须先备份主库 `novel_ledger.db`。
+- 正式删除前，必须将删除计划写入归档目录。
+- 正式删除前，必须将待删文件复制到 `local_generator/backups/delete_ops/时间戳/`。
+- 未完成备份，不准修改数据库，不准删除原始文件。
+
+### 4.3 主库重算规则
+
+- 禁止在旧库上直接做局部反向 SQL 回滚作为标准删除手段。
+- 正式删除必须采用以下顺序：
+- 先重建静态底库
+- 再按顺序重放保留章节的归档台账
+
+- 这样做的目的不是省事，而是保证以下结果一定成立：
+- `chapters_nav` 恢复成正确状态
+- `entities_registry` 的动态状态与保留章节一致
+- `wealth_and_assets` 的当前值与保留章节一致
+- `character_history_log` 与 `asset_history_log` 自动只保留截断点之前内容
+
+### 4.4 清理原始文件规则
+
+- 当且仅当主库重建和台账重放全部成功后，才允许删除原始文件。
+- 允许清理的文件范围如下：
+- `chapter/第XXX章*.md`
+- `ledger/history/update_chapter_XXX.md`
+- `temp/update_chapter_XXX.md`
+
+- 在主库未校验成功前，任何原始文件都不准提前物理删除。
+
+### 4.5 删除后验收
+
+- 第 `N` 章及之后在 `chapters_nav` 中必须不再是 `written`
+- `character_history_log` 中不得保留第 `N` 章及之后记录
+- `asset_history_log` 中不得保留第 `N` 章及之后记录
+- 保留章节数必须与删除前预检一致
+- 删除完成后，新的最后已写章节必须能作为后续续写的前情基线
+
+## 5. 工具使用规则
+
+### 5.1 预检脚本
+
+- 路径：`local_generator/plan_delete_chapters.py`
+- 定位：只做 dry-run，只展示影响范围，不修改任何文件和数据库。
+
+示例：
+
+```bash
+python local_generator/plan_delete_chapters.py --chapter_no 16 --mode last_only
+python local_generator/plan_delete_chapters.py --chapter_no 8 --mode tail
+```
+
+### 5.2 执行脚本
+
+- 路径：`local_generator/delete_chapter_workflow.py`
+- 定位：执行正式删除闭环，自动备份、自动重建、自动回放、成功后再清理原文件。
+
+示例：
+
+```bash
+python local_generator/delete_chapter_workflow.py --chapter_no 16 --mode last_only
+python local_generator/delete_chapter_workflow.py --chapter_no 8 --mode tail --execute
+```
+
+执行规则：
+
+- 不带 `--execute` 时，只能输出预检结果，不得真正删除。
+- 带 `--execute` 时，才允许执行正式删除。
+
+## 6. 熔断规则
+
+- 若预检发现“保留章节缺失归档台账”，立即中止，不允许硬删。
+- 若主库重建失败或台账回放失败，脚本必须自动恢复删除前主库备份。
+- 若连续两次人工修复同类错误仍失败，立即停止自动尝试，转为人工处理。
+
+## 7. 与写章闭环的关系
+
+- 写章仍按“正文 -> 台账 -> finalize”执行。
+- 删除是独立逆向流程，必须显式调用删除脚本，不允许用手工删文件代替。
+- 删除完成后，新的最后已写章节自动成为下一次续写的前情基线。

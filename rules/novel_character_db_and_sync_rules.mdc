@@ -1,0 +1,83 @@
+---
+description: 角色数据库同步规则说明
+globs: ["*"]
+---
+# 角色数据库同步说明
+
+## 1. 角色数据库位置
+此文件仅为规则说明。所有角色的核心设定、状态更新和历史轨迹，统一存储于项目根目录主数据库：
+`novel_ledger.db`
+
+角色事实源表为 `entities_registry`。`local_generator/character_db.json` 只保留为历史迁移来源或人工备份，不再作为运行时读取源。
+角色动态历史事实源表为 `character_history_log`，用于保存章节级的角色事件追加记录。
+
+在写正文时，如果遇到新角色或老角色状态发生重大改变，必须通过极简章节台账配合 `finalize_chapter_workflow.py` 脚本进行静默更新。
+
+## 2. 数据结构规范
+每次新增或更新角色时，写入 `entities_registry` 的扩展字段应遵循以下结构语义：
+```json
+"角色名": {
+    "name": "姓名",
+    "aliases": ["别名1", "化名2"],
+    "role_type": "核心主角 / 王府班底 / 文官阵营 等",
+    "affiliation": "所属势力",
+    "occupation": "职业或身份",
+    "personality": "性格特征描述",
+    "appearance": "外貌衣着描述",
+    "first_appearance": "首次出场章节",
+    "status": "活跃 / 死亡 / 隐退",
+    "relationships": {
+      "关联角色名": "关系描述"
+    },
+    "history": [
+      "重大事件1",
+      "重大事件2"
+    ]
+}
+```
+
+补充说明：
+- `personality` 会作为角色底色主描述，同时回填 `static_core`。
+- `status` 会作为当前状态主描述，同时回填 `current_status`。
+- `history` 是角色阶段性经历摘要；闭环时会合并进 `history_json`，并追加章节级事件到 `character_history_log`。
+- `aliases`、`relationships` 在闭环时按合并逻辑处理，不会简单粗暴整段覆盖旧值。
+
+## 3. AI 写作读取流程 (Read Flow)
+在每次开始生成新的一章正文前，AI 将执行以下操作：
+1. **解析单章细纲**：提取出本章将要出场的所有角色名称（包括化名）。
+2. **调用读取脚本**：执行 `python local_generator/read_character_db.py --names "角色A,角色B" --chapter_no [当前章节号]` 获取角色设定。
+3. **等待并注入上下文**：**必须**等待读取脚本返回角色设定后，将检索到的角色 `personality`、`appearance`、`status` 和最近历史提取出来，作为生成该章正文的前置上下文，然后再开始脑内推演和正文创作。
+4. **章节边界要求**：读取脚本按 `--chapter_no` 回看该章之前的角色历史，避免把未来章节的状态提前泄露进当前章。
+5. **缺失角色处理**：如果读取结果提示“数据库中未找到角色”，说明这是潜在新角色；允许继续写，但必须在闭环台账里补上该角色。
+
+## 4. 角色状态写入流程 (Write Flow)
+为了避免大模型直接修改 MDC 或数据库结构，所有的角色更新将通过**极简章节 JSON 台账**静默完成：
+1. **追加台账字段**：在写完正文使用 `Write` 工具保存 JSON 台账（`temp/update_chapter_XXX.md`）时，如果本章有新角色登场或老角色发生重大状态改变，必须在台账的最外层增加 `"character_updates"` 字段。
+   示例：
+   ```json
+   {
+     "chapter_no": 22,
+     "written_summary": "...",
+     "character_updates": {
+       "新角色名": { "name": "...", "role_type": "...", "history": ["..."] },
+       "老角色名": { "history": ["追加本章的新经历"] }
+     }
+   }
+   ```
+2. **自动闭环**：当你随后调用 `python local_generator/finalize_chapter_workflow.py [章节号]` 脚本时，脚本会自动提取 `"character_updates"` 字段，并将其安全地合并更新到主数据库 `novel_ledger.db` 的 `entities_registry` 表中。
+3. **历史事件追记**：如果 `history` 中写的是字符串，会直接作为本章事件写入 `character_history_log`；如果 `history` 中写的是对象，可携带 `event`、`summary`、`visibility`、`certainty` 等附加信息。
+4. **推荐最小写法**：老角色轻量状态更新时，优先只写必要字段和新增历史，不要每章把整个人设大段重复抄一遍。
+
+## 5. 同步至 Markdown 实体档案
+虽然数据库便于机器读取，但为了方便人类作者查阅，需要定期将角色数据同步回 `SPEC/05_实体档案/` 下的 Markdown 文件中。
+
+**手动/半自动同步逻辑：**
+当一个单元（如前100章）完成，或用户下达“更新实体档案”指令时，AI 将：
+1. 遍历主数据库 `entities_registry` 中的角色记录。
+2. 根据 `role_type` 字段进行分类。
+3. 将格式化后的文本（如 `- **[角色名]**：[身份]。[性格]。[外貌]。[近期经历]...`）覆写或追加到对应的 Markdown 文件中：
+   - `SPEC/05_实体档案/核心角色与王府班底.md`
+   - `SPEC/05_实体档案/文官阵营与外围配角.md`
+   - `SPEC/05_实体档案/角色婚配与子女谱系.md` 
+
+通过这套机制，我们在“自动写作循环”中就能实现：**细纲提取 -> 角色检索 -> 状态继承 -> 正文生成 -> 状态更新写库** 的闭环。

@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-darker text-gray-200 font-sans;
+  margin: 0;
+  min-width: 1280px;
+  font-size: 17px;
+  line-height: 1.65;
+  font-feature-settings: 'kern' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-darker border-l border-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-military/50 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-military/80;
+}

@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+BASE_CHARACTER_TITLE_DATA = {
+    "朱高燧": [
+        {
+            "start_chapter": 1,
+            "end_chapter": 198,
+            "identity_label": "燕王第三子",
+            "narrative_label": "燕王第三子朱高燧",
+            "formal_title": "三殿下",
+            "common_title": "三爷",
+            "self_title": "我",
+            "subordinate_title": "三爷",
+            "hostile_title": "燕王第三子",
+            "public_title": "燕王第三子朱高燧",
+            "forbidden_titles": ["赵王", "王爷", "陛下"],
+            "scene_rules": {
+                "旁白首提": "燕王第三子朱高燧",
+                "王府下人": "三爷",
+                "正式场合": "三殿下",
+            },
+            "note": "北平潜伏与靖难前中期",
+        },
+        {
+            "start_chapter": 199,
+            "identity_label": "赵王",
+            "narrative_label": "赵王朱高燧",
+            "formal_title": "赵王殿下",
+            "common_title": "赵王",
+            "self_title": "本王",
+            "subordinate_title": "王爷",
+            "hostile_title": "赵王",
+            "public_title": "赵王朱高燧",
+            "forbidden_titles": ["三爷", "三殿下"],
+            "scene_rules": {
+                "旁白首提": "赵王朱高燧",
+                "王府属官": "王爷",
+                "正式场合": "赵王殿下",
+            },
+            "note": "受封赵王后",
+        },
+    ],
+    "朱棣": [
+        {
+            "start_chapter": 1,
+            "end_chapter": 198,
+            "identity_label": "燕王",
+            "narrative_label": "燕王朱棣",
+            "formal_title": "燕王殿下",
+            "common_title": "燕王",
+            "self_title": "本王",
+            "subordinate_title": "王爷",
+            "hostile_title": "燕王朱棣",
+            "public_title": "燕王朱棣",
+            "forbidden_titles": ["陛下", "圣上", "永乐帝"],
+            "scene_rules": {
+                "旁白首提": "燕王朱棣",
+                "王府下属": "王爷",
+                "正式场合": "燕王殿下",
+            },
+            "note": "登极前",
+        },
+        {
+            "start_chapter": 199,
+            "identity_label": "皇帝",
+            "narrative_label": "朱棣",
+            "formal_title": "陛下",
+            "common_title": "陛下",
+            "self_title": "朕",
+            "subordinate_title": "陛下",
+            "hostile_title": "朱棣",
+            "public_title": "皇帝陛下",
+            "forbidden_titles": ["燕王", "王爷"],
+            "scene_rules": {
+                "旁白首提": "朱棣",
+                "朝堂": "陛下",
+                "内廷": "陛下",
+            },
+            "note": "登极后",
+        },
+    ],
+    "青鸾": [
+        {
+            "start_chapter": 1,
+            "identity_label": "偏院近侍侍女",
+            "narrative_label": "青鸾",
+            "formal_title": "青鸾",
+            "common_title": "青鸾",
+            "self_title": "奴婢",
+            "subordinate_title": "青鸾",
+            "hostile_title": "那丫头",
+            "public_title": "燕王府侍女青鸾",
+            "forbidden_titles": [],
+            "scene_rules": {
+                "对朱高燧": "三爷",
+                "自称": "奴婢",
+            },
+            "note": "当前静态称谓",
+        }
+    ],
+    "老刘": [
+        {
+            "start_chapter": 1,
+            "identity_label": "偏院老仆",
+            "narrative_label": "老刘",
+            "formal_title": "老刘",
+            "common_title": "老刘",
+            "self_title": "小的",
+            "subordinate_title": "刘叔",
+            "hostile_title": "老东西",
+            "public_title": "燕王府老仆老刘",
+            "forbidden_titles": [],
+            "scene_rules": {
+                "对朱高燧": "三爷",
+                "自称": "小的",
+            },
+            "note": "当前静态称谓",
+        }
+    ],
+}

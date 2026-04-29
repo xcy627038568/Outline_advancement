@@ -1,0 +1,50 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node / Frontend
+node_modules/
+narrative_os/frontend/node_modules/
+narrative_os/frontend/dist/
+
+# Build / runtime
+dist/
+build/
+*.log
+
+# Local database and generated state
+*.db
+*.sqlite
+novel_ledger.db
+local_generator/assets_db.json
+local_generator/character_db.json
+
+# Workflow temp / previews
+temp/
+!temp/.gitkeep
+
+# Local backups and generated reports
+local_generator/backups/
+local_generator/delete_ops/
+
+# Optional env
+.env
+.env.*
